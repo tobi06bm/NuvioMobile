@@ -8,10 +8,11 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout med submodules
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Init submodules (skip ødelagte)
+        run: git submodule update --init --recursive 2>/dev/null || git submodule update --init MPVKit
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
