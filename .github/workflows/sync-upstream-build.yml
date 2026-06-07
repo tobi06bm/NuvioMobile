@@ -70,7 +70,7 @@ jobs:
           ref: cmp-rewrite
 
       - name: Init submodules (skip ødelagte)
-        run: git submodule update --init --recursive 2>/dev/null || git submodule update --init MPVKit
+        run: git submodule update --init --recursive 2>/dev/null || git submodule update --init MPVKit 2>/dev/null || true
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
