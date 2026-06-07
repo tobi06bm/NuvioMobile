@@ -1,0 +1,138 @@
+name: Synk fra original + Byg iOS IPA
+
+# Holder min fork opdateret med originalen (NuvioMedia/NuvioMobile) og bygger
+# automatisk en ny unsigned IPA hver gang der er nye ændringer derovre.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # Tjek originalen for nyt hver 6. time
+  workflow_dispatch:        # Kan også startes manuelt fra Actions-fanen
+
+permissions:
+  contents: write           # Nødvendig for at pushe synk + oprette Release
+
+concurrency:
+  group: sync-upstream-build
+  cancel-in-progress: false
+
+jobs:
+  # 1) Hent nye ændringer fra originalen og flet dem ind i min fork
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+    steps:
+      - name: Checkout min fork
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-rewrite
+          fetch-depth: 0
+
+      - name: Flet originalens ændringer ind
+        id: sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote add upstream https://github.com/NuvioMedia/NuvioMobile.git
+          git fetch upstream cmp-rewrite
+
+          BEFORE=$(git rev-parse HEAD)
+          if ! git merge --no-edit upstream/cmp-rewrite; then
+            echo "::error::Merge-konflikt mellem min fork og originalen – kan ikke flette automatisk."
+            exit 1
+          fi
+          AFTER=$(git rev-parse HEAD)
+
+          if [ "$BEFORE" = "$AFTER" ]; then
+            echo "Ingen nye ændringer fra originalen – springer byg over."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nye ændringer fundet – opdaterer min fork."
+            git push origin cmp-rewrite
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # 2) Byg ny IPA – kun hvis der faktisk var nye ændringer
+  build:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    runs-on: macos-latest
+    steps:
+      - name: Vælg nyeste Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest'
+
+      - name: Checkout (nyeste synkede kode)
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-rewrite
+
+      - name: Init submodules (skip ødelagte)
+        run: git submodule update --init --recursive 2>/dev/null || git submodule update --init MPVKit
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Opret local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Giv rettigheder til scripts
+        run: |
+          chmod +x gradlew
+          find scripts -name "*.sh" -exec chmod +x {} \;
+
+      - name: Byg Kotlin/Native iOS framework
+        run: ./gradlew :composeApp:linkReleaseFrameworkIosArm64
+
+      - name: Byg unsigned .app via xcodebuild
+        run: |
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            ARCHS=arm64 \
+            build \
+            CONFIGURATION_BUILD_DIR="$PWD/build/iosOutput"
+
+      - name: Pak .app ind i .ipa
+        run: |
+          mkdir -p build/Payload
+          APP=$(find build/iosOutput -name "*.app" -maxdepth 1 | head -1)
+          echo "Fundet app: $APP"
+          cp -r "$APP" build/Payload/
+          cd build
+          zip -r NuvioMobile-unsigned.ipa Payload
+          echo "IPA størrelse: $(du -sh NuvioMobile-unsigned.ipa)"
+
+      - name: Upload IPA som artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NuvioMobile-iOS-unsigned
+          path: build/NuvioMobile-unsigned.ipa
+          retention-days: 14
+
+      - name: Udgiv IPA til GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-latest
+          name: Seneste iOS build (unsigned)
+          body: |
+            Automatisk bygget unsigned IPA efter synk fra originalen (NuvioMedia/NuvioMobile).
+
+            - Commit: ${{ github.sha }}
+            - Bygget: ${{ github.run_id }}
+          prerelease: true
+          files: build/NuvioMobile-unsigned.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
