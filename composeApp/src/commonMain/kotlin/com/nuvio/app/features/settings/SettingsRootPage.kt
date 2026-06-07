@@ -14,6 +14,8 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
@@ -24,11 +26,13 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_about_made_with
 import nuvio.composeapp.generated.resources.compose_about_version_format
 import nuvio.composeapp.generated.resources.compose_settings_page_account
+import nuvio.composeapp.generated.resources.compose_settings_page_advanced
 import nuvio.composeapp.generated.resources.compose_settings_page_appearance
 import nuvio.composeapp.generated.resources.compose_settings_page_integrations
 import nuvio.composeapp.generated.resources.compose_settings_page_licenses_attributions
 import nuvio.composeapp.generated.resources.compose_settings_page_notifications
 import nuvio.composeapp.generated.resources.compose_settings_page_playback
+import nuvio.composeapp.generated.resources.compose_settings_page_streams
 import nuvio.composeapp.generated.resources.compose_settings_page_supporters_contributors
 import nuvio.composeapp.generated.resources.compose_settings_root_account_description
 import nuvio.composeapp.generated.resources.compose_settings_root_appearance_description
@@ -40,11 +44,14 @@ import nuvio.composeapp.generated.resources.compose_settings_root_downloads_titl
 import nuvio.composeapp.generated.resources.compose_settings_root_general_section
 import nuvio.composeapp.generated.resources.compose_settings_root_integrations_description
 import nuvio.composeapp.generated.resources.compose_settings_root_notifications_description
+import nuvio.composeapp.generated.resources.compose_settings_root_streams_description
 import nuvio.composeapp.generated.resources.compose_settings_root_switch_profile_description
 import nuvio.composeapp.generated.resources.compose_settings_root_switch_profile_title
 import nuvio.composeapp.generated.resources.compose_settings_root_trakt_description
 import nuvio.composeapp.generated.resources.compose_settings_root_about_section
 import nuvio.composeapp.generated.resources.compose_settings_root_account_section
+import nuvio.composeapp.generated.resources.compose_settings_root_advanced_description
+import nuvio.composeapp.generated.resources.compose_settings_root_advanced_section
 import nuvio.composeapp.generated.resources.compose_settings_page_content_discovery
 import nuvio.composeapp.generated.resources.compose_settings_page_trakt
 import nuvio.composeapp.generated.resources.settings_playback_subtitle
@@ -55,7 +62,9 @@ import org.jetbrains.compose.resources.stringResource
 internal fun LazyListScope.settingsRootContent(
     isTablet: Boolean,
     onPlaybackClick: () -> Unit,
+    onStreamsClick: () -> Unit,
     onAppearanceClick: () -> Unit,
+    onAdvancedClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     onContentDiscoveryClick: () -> Unit,
     onIntegrationsClick: () -> Unit,
@@ -69,6 +78,7 @@ internal fun LazyListScope.settingsRootContent(
     showAccountSection: Boolean = true,
     showGeneralSection: Boolean = true,
     showAboutSection: Boolean = true,
+    showAdvancedSection: Boolean = true,
 ) {
     if (showAccountSection) {
         item {
@@ -146,6 +156,14 @@ internal fun LazyListScope.settingsRootContent(
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
+                        title = stringResource(Res.string.compose_settings_page_streams),
+                        description = stringResource(Res.string.compose_settings_root_streams_description),
+                        icon = Icons.Rounded.Style,
+                        isTablet = isTablet,
+                        onClick = onStreamsClick,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
                         title = stringResource(Res.string.compose_settings_page_integrations),
                         description = stringResource(Res.string.compose_settings_root_integrations_description),
                         icon = Icons.Rounded.Link,
@@ -196,6 +214,24 @@ internal fun LazyListScope.settingsRootContent(
                             onClick = onCheckForUpdatesClick,
                         )
                     }
+                }
+            }
+        }
+    }
+    if (showAdvancedSection) {
+        item {
+            SettingsSection(
+                title = stringResource(Res.string.compose_settings_root_advanced_section),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.compose_settings_page_advanced),
+                        description = stringResource(Res.string.compose_settings_root_advanced_description),
+                        icon = Icons.Rounded.Tune,
+                        isTablet = isTablet,
+                        onClick = onAdvancedClick,
+                    )
                 }
             }
         }

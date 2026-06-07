@@ -24,6 +24,7 @@ actual object PlayerSettingsStorage {
     private const val holdToSpeedEnabledKey = "hold_to_speed_enabled"
     private const val holdToSpeedValueKey = "hold_to_speed_value"
     private const val externalPlayerEnabledKey = "external_player_enabled"
+    private const val externalPlayerForwardSubtitlesKey = "external_player_forward_subtitles"
     private const val externalPlayerIdKey = "external_player_id"
     private const val preferredAudioLanguageKey = "preferred_audio_language"
     private const val secondaryPreferredAudioLanguageKey = "secondary_preferred_audio_language"
@@ -69,6 +70,7 @@ actual object PlayerSettingsStorage {
     private const val iosTargetPrimariesKey = "ios_target_primaries"
     private const val iosTargetTransferKey = "ios_target_transfer"
     private const val iosHardwareDecoderModeKey = "ios_hardware_decoder_mode"
+    private const val iosAudioOutputModeKey = "ios_audio_output_mode"
     private const val iosExtendedDynamicRangeEnabledKey = "ios_extended_dynamic_range_enabled"
     private const val iosTargetColorspaceHintEnabledKey = "ios_target_colorspace_hint_enabled"
     private const val iosHdrComputePeakEnabledKey = "ios_hdr_compute_peak_enabled"
@@ -84,6 +86,7 @@ actual object PlayerSettingsStorage {
         holdToSpeedEnabledKey,
         holdToSpeedValueKey,
         externalPlayerEnabledKey,
+        externalPlayerForwardSubtitlesKey,
         externalPlayerIdKey,
         preferredAudioLanguageKey,
         secondaryPreferredAudioLanguageKey,
@@ -127,6 +130,7 @@ actual object PlayerSettingsStorage {
         iosTargetPrimariesKey,
         iosTargetTransferKey,
         iosHardwareDecoderModeKey,
+        iosAudioOutputModeKey,
         iosExtendedDynamicRangeEnabledKey,
         iosTargetColorspaceHintEnabledKey,
         iosHdrComputePeakEnabledKey,
@@ -219,6 +223,23 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(externalPlayerEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadExternalPlayerForwardSubtitles(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(externalPlayerForwardSubtitlesKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, false)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveExternalPlayerForwardSubtitles(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(externalPlayerForwardSubtitlesKey), enabled)
             ?.apply()
     }
 
@@ -846,6 +867,13 @@ actual object PlayerSettingsStorage {
         preferences?.edit()?.putString(ProfileScopedKey.of(iosHardwareDecoderModeKey), mode)?.apply()
     }
 
+    actual fun loadIosAudioOutputMode(): String? =
+        preferences?.getString(ProfileScopedKey.of(iosAudioOutputModeKey), null)
+
+    actual fun saveIosAudioOutputMode(mode: String) {
+        preferences?.edit()?.putString(ProfileScopedKey.of(iosAudioOutputModeKey), mode)?.apply()
+    }
+
     private fun loadIosBoolean(keyBase: String, defaultValue: Boolean): Boolean? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(keyBase)
@@ -931,6 +959,7 @@ actual object PlayerSettingsStorage {
         loadHoldToSpeedEnabled()?.let { put(holdToSpeedEnabledKey, encodeSyncBoolean(it)) }
         loadHoldToSpeedValue()?.let { put(holdToSpeedValueKey, encodeSyncFloat(it)) }
         loadExternalPlayerEnabled()?.let { put(externalPlayerEnabledKey, encodeSyncBoolean(it)) }
+        loadExternalPlayerForwardSubtitles()?.let { put(externalPlayerForwardSubtitlesKey, encodeSyncBoolean(it)) }
         loadExternalPlayerId()?.let { put(externalPlayerIdKey, encodeSyncString(it)) }
         loadPreferredAudioLanguage()?.let { put(preferredAudioLanguageKey, encodeSyncString(it)) }
         loadSecondaryPreferredAudioLanguage()?.let { put(secondaryPreferredAudioLanguageKey, encodeSyncString(it)) }
@@ -974,6 +1003,7 @@ actual object PlayerSettingsStorage {
         loadIosTargetPrimaries()?.let { put(iosTargetPrimariesKey, encodeSyncString(it)) }
         loadIosTargetTransfer()?.let { put(iosTargetTransferKey, encodeSyncString(it)) }
         loadIosHardwareDecoderMode()?.let { put(iosHardwareDecoderModeKey, encodeSyncString(it)) }
+        loadIosAudioOutputMode()?.let { put(iosAudioOutputModeKey, encodeSyncString(it)) }
         loadIosExtendedDynamicRangeEnabled()?.let { put(iosExtendedDynamicRangeEnabledKey, encodeSyncBoolean(it)) }
         loadIosTargetColorspaceHintEnabled()?.let { put(iosTargetColorspaceHintEnabledKey, encodeSyncBoolean(it)) }
         loadIosHdrComputePeakEnabled()?.let { put(iosHdrComputePeakEnabledKey, encodeSyncBoolean(it)) }
@@ -995,6 +1025,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(holdToSpeedEnabledKey)?.let(::saveHoldToSpeedEnabled)
         payload.decodeSyncFloat(holdToSpeedValueKey)?.let(::saveHoldToSpeedValue)
         payload.decodeSyncBoolean(externalPlayerEnabledKey)?.let(::saveExternalPlayerEnabled)
+        payload.decodeSyncBoolean(externalPlayerForwardSubtitlesKey)?.let(::saveExternalPlayerForwardSubtitles)
         payload.decodeSyncString(externalPlayerIdKey)?.let(::saveExternalPlayerId)
         payload.decodeSyncString(preferredAudioLanguageKey)?.let(::savePreferredAudioLanguage)
         payload.decodeSyncString(secondaryPreferredAudioLanguageKey)?.let(::saveSecondaryPreferredAudioLanguage)
@@ -1040,6 +1071,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(iosTargetPrimariesKey)?.let(::saveIosTargetPrimaries)
         payload.decodeSyncString(iosTargetTransferKey)?.let(::saveIosTargetTransfer)
         payload.decodeSyncString(iosHardwareDecoderModeKey)?.let(::saveIosHardwareDecoderMode)
+        payload.decodeSyncString(iosAudioOutputModeKey)?.let(::saveIosAudioOutputMode)
         payload.decodeSyncBoolean(iosExtendedDynamicRangeEnabledKey)?.let(::saveIosExtendedDynamicRangeEnabled)
         payload.decodeSyncBoolean(iosTargetColorspaceHintEnabledKey)?.let(::saveIosTargetColorspaceHintEnabled)
         payload.decodeSyncBoolean(iosHdrComputePeakEnabledKey)?.let(::saveIosHdrComputePeakEnabled)

@@ -37,6 +37,7 @@ data class PlayerSettingsUiState(
     val holdToSpeedEnabled: Boolean = true,
     val holdToSpeedValue: Float = 2f,
     val externalPlayerEnabled: Boolean = false,
+    val externalPlayerForwardSubtitles: Boolean = false,
     val externalPlayerId: String? = ExternalPlayerPlatform.defaultPlayerId(),
     val preferredAudioLanguage: String = AudioLanguageOption.DEVICE,
     val secondaryPreferredAudioLanguage: String? = null,
@@ -72,7 +73,8 @@ data class PlayerSettingsUiState(
     val iosToneMappingMode: IosToneMappingMode = IosToneMappingMode.Auto,
     val iosTargetPrimaries: IosTargetPrimaries = IosTargetPrimaries.Auto,
     val iosTargetTransfer: IosTargetTransfer = IosTargetTransfer.Auto,
-    val iosHardwareDecoderMode: IosHardwareDecoderMode = IosHardwareDecoderMode.Auto,
+    val iosHardwareDecoderMode: IosHardwareDecoderMode = IosHardwareDecoderMode.VideoToolbox,
+    val iosAudioOutputMode: IosAudioOutputMode = IosAudioOutputMode.Auto,
     val iosExtendedDynamicRangeEnabled: Boolean = true,
     val iosTargetColorspaceHintEnabled: Boolean = true,
     val iosHdrComputePeakEnabled: Boolean = true,
@@ -94,6 +96,7 @@ object PlayerSettingsRepository {
     private var holdToSpeedEnabled = true
     private var holdToSpeedValue = 2f
     private var externalPlayerEnabled = false
+    private var externalPlayerForwardSubtitles = false
     private var externalPlayerId: String? = ExternalPlayerPlatform.defaultPlayerId()
     private var preferredAudioLanguage = AudioLanguageOption.DEVICE
     private var secondaryPreferredAudioLanguage: String? = null
@@ -129,7 +132,8 @@ object PlayerSettingsRepository {
     private var iosToneMappingMode = IosToneMappingMode.Auto
     private var iosTargetPrimaries = IosTargetPrimaries.Auto
     private var iosTargetTransfer = IosTargetTransfer.Auto
-    private var iosHardwareDecoderMode = IosHardwareDecoderMode.Auto
+    private var iosHardwareDecoderMode = IosHardwareDecoderMode.VideoToolbox
+    private var iosAudioOutputMode = IosAudioOutputMode.Auto
     private var iosExtendedDynamicRangeEnabled = true
     private var iosTargetColorspaceHintEnabled = true
     private var iosHdrComputePeakEnabled = true
@@ -156,6 +160,7 @@ object PlayerSettingsRepository {
         holdToSpeedEnabled = true
         holdToSpeedValue = 2f
         externalPlayerEnabled = false
+        externalPlayerForwardSubtitles = false
         externalPlayerId = ExternalPlayerPlatform.defaultPlayerId()
         preferredAudioLanguage = AudioLanguageOption.DEVICE
         secondaryPreferredAudioLanguage = null
@@ -191,7 +196,8 @@ object PlayerSettingsRepository {
         iosToneMappingMode = IosToneMappingMode.Auto
         iosTargetPrimaries = IosTargetPrimaries.Auto
         iosTargetTransfer = IosTargetTransfer.Auto
-        iosHardwareDecoderMode = IosHardwareDecoderMode.Auto
+        iosHardwareDecoderMode = IosHardwareDecoderMode.VideoToolbox
+        iosAudioOutputMode = IosAudioOutputMode.Auto
         iosExtendedDynamicRangeEnabled = true
         iosTargetColorspaceHintEnabled = true
         iosHdrComputePeakEnabled = true
@@ -213,6 +219,7 @@ object PlayerSettingsRepository {
         holdToSpeedEnabled = PlayerSettingsStorage.loadHoldToSpeedEnabled() ?: true
         holdToSpeedValue = PlayerSettingsStorage.loadHoldToSpeedValue() ?: 2f
         externalPlayerEnabled = PlayerSettingsStorage.loadExternalPlayerEnabled() ?: false
+        externalPlayerForwardSubtitles = PlayerSettingsStorage.loadExternalPlayerForwardSubtitles() ?: false
         externalPlayerId = PlayerSettingsStorage.loadExternalPlayerId()
             ?: ExternalPlayerPlatform.defaultPlayerId()
         preferredAudioLanguage =
@@ -313,7 +320,10 @@ object PlayerSettingsRepository {
             ?: IosTargetTransfer.Auto
         iosHardwareDecoderMode = PlayerSettingsStorage.loadIosHardwareDecoderMode()
             ?.let { runCatching { IosHardwareDecoderMode.valueOf(it) }.getOrNull() }
-            ?: IosHardwareDecoderMode.Auto
+            ?: IosHardwareDecoderMode.VideoToolbox
+        iosAudioOutputMode = PlayerSettingsStorage.loadIosAudioOutputMode()
+            ?.let { runCatching { IosAudioOutputMode.valueOf(it) }.getOrNull() }
+            ?: IosAudioOutputMode.Auto
         iosExtendedDynamicRangeEnabled = PlayerSettingsStorage.loadIosExtendedDynamicRangeEnabled() ?: true
         iosTargetColorspaceHintEnabled = PlayerSettingsStorage.loadIosTargetColorspaceHintEnabled() ?: true
         iosHdrComputePeakEnabled = PlayerSettingsStorage.loadIosHdrComputePeakEnabled() ?: true
@@ -382,6 +392,14 @@ object PlayerSettingsRepository {
         externalPlayerId = normalized
         publish()
         PlayerSettingsStorage.saveExternalPlayerId(normalized)
+    }
+
+    fun setExternalPlayerForwardSubtitles(enabled: Boolean) {
+        ensureLoaded()
+        if (externalPlayerForwardSubtitles == enabled) return
+        externalPlayerForwardSubtitles = enabled
+        publish()
+        PlayerSettingsStorage.saveExternalPlayerForwardSubtitles(enabled)
     }
 
     fun setPreferredAudioLanguage(language: String) {
@@ -704,6 +722,13 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveIosHardwareDecoderMode(mode.name)
     }
 
+    fun setIosAudioOutputMode(mode: IosAudioOutputMode) {
+        ensureLoaded()
+        iosAudioOutputMode = mode
+        publish()
+        PlayerSettingsStorage.saveIosAudioOutputMode(mode.name)
+    }
+
     fun setIosExtendedDynamicRangeEnabled(enabled: Boolean) {
         ensureLoaded()
         iosVideoOutputPreset = IosVideoOutputPreset.Custom
@@ -804,6 +829,7 @@ object PlayerSettingsRepository {
             holdToSpeedEnabled = holdToSpeedEnabled,
             holdToSpeedValue = holdToSpeedValue,
             externalPlayerEnabled = externalPlayerEnabled,
+            externalPlayerForwardSubtitles = externalPlayerForwardSubtitles,
             externalPlayerId = externalPlayerId,
             preferredAudioLanguage = preferredAudioLanguage,
             secondaryPreferredAudioLanguage = secondaryPreferredAudioLanguage,
@@ -840,6 +866,7 @@ object PlayerSettingsRepository {
             iosTargetPrimaries = iosTargetPrimaries,
             iosTargetTransfer = iosTargetTransfer,
             iosHardwareDecoderMode = iosHardwareDecoderMode,
+            iosAudioOutputMode = iosAudioOutputMode,
             iosExtendedDynamicRangeEnabled = iosExtendedDynamicRangeEnabled,
             iosTargetColorspaceHintEnabled = iosTargetColorspaceHintEnabled,
             iosHdrComputePeakEnabled = iosHdrComputePeakEnabled,

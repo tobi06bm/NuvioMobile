@@ -85,13 +85,16 @@ internal fun settingsSearchEntries(
     val accountCategory = stringResource(SettingsCategory.Account.labelRes)
     val generalCategory = stringResource(SettingsCategory.General.labelRes)
     val aboutCategory = stringResource(SettingsCategory.About.labelRes)
+    val advancedCategory = stringResource(SettingsCategory.Advanced.labelRes)
 
     val accountPage = stringResource(Res.string.compose_settings_page_account)
     val traktPage = stringResource(Res.string.compose_settings_page_trakt)
     val layoutPage = stringResource(Res.string.compose_settings_page_appearance)
+    val advancedPage = stringResource(Res.string.compose_settings_page_advanced)
     val contentDiscoveryPage = stringResource(Res.string.compose_settings_page_content_discovery)
     val downloadsPage = stringResource(Res.string.compose_settings_root_downloads_title)
     val playbackPage = stringResource(Res.string.compose_settings_page_playback)
+    val streamsPage = stringResource(Res.string.compose_settings_page_streams)
     val integrationsPage = stringResource(Res.string.compose_settings_page_integrations)
     val notificationsPage = stringResource(Res.string.compose_settings_page_notifications)
     val supportersPage = stringResource(Res.string.compose_settings_page_supporters_contributors)
@@ -207,6 +210,14 @@ internal fun settingsSearchEntries(
         icon = Icons.Rounded.Palette,
     )
     addPage(
+        page = SettingsPage.Advanced,
+        key = "advanced",
+        title = advancedPage,
+        description = stringResource(Res.string.compose_settings_root_advanced_description),
+        category = advancedCategory,
+        icon = Icons.Rounded.Tune,
+    )
+    addPage(
         page = SettingsPage.ContentDiscovery,
         key = "content-discovery",
         title = contentDiscoveryPage,
@@ -227,6 +238,13 @@ internal fun settingsSearchEntries(
         title = playbackPage,
         description = stringResource(Res.string.settings_playback_subtitle),
         icon = Icons.Rounded.PlayArrow,
+    )
+    addPage(
+        page = SettingsPage.Streams,
+        key = "streams",
+        title = streamsPage,
+        description = stringResource(Res.string.compose_settings_root_streams_description),
+        icon = Icons.Rounded.Style,
     )
     addPage(
         page = SettingsPage.Integrations,
@@ -360,6 +378,26 @@ internal fun settingsSearchEntries(
         section = stringResource(Res.string.settings_appearance_section_display),
         icon = Icons.Rounded.Language,
     )
+    addRow(
+        page = SettingsPage.Advanced,
+        key = "remember-last-profile",
+        title = stringResource(Res.string.settings_advanced_remember_last_profile),
+        description = stringResource(Res.string.settings_advanced_remember_last_profile_description),
+        pageLabel = advancedPage,
+        section = stringResource(Res.string.settings_advanced_section_startup),
+        category = advancedCategory,
+        icon = Icons.Rounded.Tune,
+    )
+    addRow(
+        page = SettingsPage.Advanced,
+        key = "clear-cw-cache",
+        title = stringResource(Res.string.settings_advanced_clear_cw_cache),
+        description = stringResource(Res.string.settings_advanced_clear_cw_cache_subtitle),
+        pageLabel = advancedPage,
+        section = stringResource(Res.string.settings_advanced_section_cache),
+        category = advancedCategory,
+        icon = Icons.Rounded.Tune,
+    )
     addPage(
         page = SettingsPage.ContinueWatching,
         key = "continue-watching",
@@ -424,6 +462,33 @@ internal fun settingsSearchEntries(
     val playbackSubtitleRendering = stringResource(Res.string.settings_playback_section_subtitle_rendering)
     val playbackSkipSegments = stringResource(Res.string.settings_playback_section_skip_segments)
     val playbackNextEpisode = stringResource(Res.string.settings_playback_section_next_episode)
+    addRow(
+        page = SettingsPage.Streams,
+        key = "stream-size-badges",
+        title = stringResource(Res.string.settings_stream_size_badges_title),
+        description = stringResource(Res.string.settings_stream_size_badges_description),
+        pageLabel = streamsPage,
+        section = stringResource(Res.string.settings_stream_badges_section),
+        icon = Icons.Rounded.Style,
+    )
+    addRow(
+        page = SettingsPage.Streams,
+        key = "stream-badge-position",
+        title = stringResource(Res.string.settings_stream_badge_position_title),
+        description = stringResource(Res.string.settings_stream_badge_position_description),
+        pageLabel = streamsPage,
+        section = stringResource(Res.string.settings_stream_badges_section),
+        icon = Icons.Rounded.Style,
+    )
+    addRow(
+        page = SettingsPage.Streams,
+        key = "stream-badge-urls",
+        title = stringResource(Res.string.settings_stream_badge_urls_title),
+        description = stringResource(Res.string.settings_stream_badge_urls_search_description),
+        pageLabel = streamsPage,
+        section = stringResource(Res.string.settings_stream_badges_section),
+        icon = Icons.Rounded.Style,
+    )
     addPlaybackRows(
         addRow = ::addRow,
         pageLabel = playbackPage,
@@ -753,6 +818,7 @@ internal fun settingsSearchEntries(
         PlaybackSearchRow("trakt-watch-progress", stringResource(Res.string.trakt_watch_progress_title), stringResource(Res.string.trakt_watch_progress_subtitle)),
         PlaybackSearchRow("trakt-continue-watching-window", stringResource(Res.string.trakt_continue_watching_window), stringResource(Res.string.trakt_continue_watching_subtitle)),
         PlaybackSearchRow("trakt-comments", stringResource(Res.string.settings_trakt_comments), stringResource(Res.string.settings_trakt_comments_description)),
+        PlaybackSearchRow("trakt-more-like-this-source", stringResource(Res.string.trakt_more_like_this_source_title), stringResource(Res.string.trakt_more_like_this_source_subtitle)),
     ).forEach { row ->
         addRow(
             page = SettingsPage.TraktAuthentication,
