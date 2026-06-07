@@ -1,26 +1,73 @@
-name: Build iOS IPA (Unsigned)
+name: Synk fra original + Byg iOS IPA
+
+# Holder min fork opdateret med originalen (NuvioMedia/NuvioMobile) og bygger
+# automatisk en ny unsigned IPA hver gang der er nye ændringer derovre.
 
 on:
-  push:
-    branches:
-      - cmp-rewrite   # Byg automatisk ved hvert push til hovedbranchen
-  workflow_dispatch:  # Kan også køres manuelt fra Actions-fanen
+  schedule:
+    - cron: '0 */6 * * *'   # Tjek originalen for nyt hver 6. time
+  workflow_dispatch:        # Kan også startes manuelt fra Actions-fanen
 
 permissions:
-  contents: write     # Nødvendig for at kunne oprette/opdatere GitHub Releases
+  contents: write           # Nødvendig for at pushe synk + oprette Release
+
+concurrency:
+  group: sync-upstream-build
+  cancel-in-progress: false
 
 jobs:
-  build-ios:
-    runs-on: macos-latest
+  # 1) Hent nye ændringer fra originalen og flet dem ind i min fork
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+    steps:
+      - name: Checkout min fork
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-rewrite
+          fetch-depth: 0
 
+      - name: Flet originalens ændringer ind
+        id: sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote add upstream https://github.com/NuvioMedia/NuvioMobile.git
+          git fetch upstream cmp-rewrite
+
+          BEFORE=$(git rev-parse HEAD)
+          if ! git merge --no-edit upstream/cmp-rewrite; then
+            echo "::error::Merge-konflikt mellem min fork og originalen – kan ikke flette automatisk."
+            exit 1
+          fi
+          AFTER=$(git rev-parse HEAD)
+
+          if [ "$BEFORE" = "$AFTER" ]; then
+            echo "Ingen nye ændringer fra originalen – springer byg over."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nye ændringer fundet – opdaterer min fork."
+            git push origin cmp-rewrite
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # 2) Byg ny IPA – kun hvis der faktisk var nye ændringer
+  build:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    runs-on: macos-latest
     steps:
       - name: Vælg nyeste Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: 'latest'
 
-      - name: Checkout
+      - name: Checkout (nyeste synkede kode)
         uses: actions/checkout@v4
+        with:
+          ref: cmp-rewrite
 
       - name: Init submodules (skip ødelagte)
         run: git submodule update --init --recursive 2>/dev/null || git submodule update --init MPVKit
@@ -81,7 +128,7 @@ jobs:
           tag_name: ios-latest
           name: Seneste iOS build (unsigned)
           body: |
-            Automatisk bygget unsigned IPA fra seneste commit på `cmp-rewrite`.
+            Automatisk bygget unsigned IPA efter synk fra originalen (NuvioMedia/NuvioMobile).
 
             - Commit: ${{ github.sha }}
             - Bygget: ${{ github.run_id }}
