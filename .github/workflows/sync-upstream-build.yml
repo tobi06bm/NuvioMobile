@@ -69,8 +69,12 @@ jobs:
         with:
           ref: cmp-rewrite
 
-      - name: Init submodules (skip ødelagte)
-        run: git submodule update --init --recursive 2>/dev/null || git submodule update --init MPVKit 2>/dev/null || true
+      - name: Hent MPVKit-afspilleren
+        # Submodul-pinnet peger på en commit der ikke længere findes i kilde-repoet,
+        # så vi henter den nyeste fungerende version direkte ind i MPVKit-mappen.
+        run: |
+          rm -rf MPVKit
+          git clone --depth 1 https://github.com/tapframe/MPVNuvio.git MPVKit
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
