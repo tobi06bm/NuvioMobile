@@ -93,10 +93,19 @@ jobs:
           chmod +x gradlew
           find scripts -name "*.sh" -exec chmod +x {} \;
 
-      - name: Byg Kotlin/Native iOS framework
-        run: ./gradlew :composeApp:linkReleaseFrameworkIosArm64
+      - name: Frigør hukommelse til kompileringen
+        # Skru Gradle-dæmonen ned så Kotlin/Native-kompileringen får mere af
+        # maskinens 7 GB RAM. Overstyrer projektets gradle.properties.
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo "org.gradle.jvmargs=-Xmx1500m -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=768m"
+            echo "org.gradle.workers.max=1"
+          } >> ~/.gradle/gradle.properties
 
       - name: Byg unsigned .app via xcodebuild
+        # xcodebuild kører selv Kotlin/Native-bygget (embedAndSign) som et build-trin,
+        # så vi bygger ikke framework'et separat – det undgår at bygge det tunge trin to gange.
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
