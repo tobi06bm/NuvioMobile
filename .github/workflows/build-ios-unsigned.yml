@@ -1,7 +1,13 @@
 name: Build iOS IPA (Unsigned)
 
 on:
-  workflow_dispatch:  # Kør manuelt fra Actions-fanen
+  push:
+    branches:
+      - cmp-rewrite   # Byg automatisk ved hvert push til hovedbranchen
+  workflow_dispatch:  # Kan også køres manuelt fra Actions-fanen
+
+permissions:
+  contents: write     # Nødvendig for at kunne oprette/opdatere GitHub Releases
 
 jobs:
   build-ios:
@@ -68,3 +74,18 @@ jobs:
           name: NuvioMobile-iOS-unsigned
           path: build/NuvioMobile-unsigned.ipa
           retention-days: 14
+
+      - name: Udgiv IPA til GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-latest
+          name: Seneste iOS build (unsigned)
+          body: |
+            Automatisk bygget unsigned IPA fra seneste commit på `cmp-rewrite`.
+
+            - Commit: ${{ github.sha }}
+            - Bygget: ${{ github.run_id }}
+          prerelease: true
+          files: build/NuvioMobile-unsigned.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
