@@ -42,6 +42,18 @@ jobs:
             echo "::error::Merge-konflikt mellem min fork og originalen – kan ikke flette automatisk."
             exit 1
           fi
+
+          # GitHubs robot-token har ikke lov til at oprette/ændre workflow-filer
+          # (.github/workflows/*). Hvis originalen ændrer en workflow, bliver
+          # pushet ellers afvist. Vi beholder derfor altid VORES egne
+          # workflow-filer og ruller originalens workflow-ændringer tilbage,
+          # så pushet ikke rører .github/workflows.
+          if ! git diff --quiet "$BEFORE" HEAD -- .github/workflows; then
+            echo "Originalen ændrede workflow-filer – beholder mine egne."
+            git checkout "$BEFORE" -- .github/workflows
+            git commit -m "Behold egne workflows ved synk fra original" || true
+          fi
+
           AFTER=$(git rev-parse HEAD)
 
           if [ "$BEFORE" = "$AFTER" ]; then
