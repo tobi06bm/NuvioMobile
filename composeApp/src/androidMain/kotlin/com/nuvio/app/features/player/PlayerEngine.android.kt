@@ -56,6 +56,7 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import androidx.media3.ui.CaptionStyleCompat
 import com.nuvio.app.R
+import com.nuvio.app.features.streams.normalizeStreamType
 import io.github.peerless2012.ass.media.widget.AssSubtitleView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -75,17 +76,12 @@ actual fun PlatformPlayerSurface(
     sourceAudioUrl: String?,
     sourceHeaders: Map<String, String>,
     sourceResponseHeaders: Map<String, String>,
+    streamType: String?,
     useYoutubeChunkedPlayback: Boolean,
     modifier: Modifier,
     playWhenReady: Boolean,
     resizeMode: PlayerResizeMode,
-    initialPositionMs: Long,
     useNativeController: Boolean,
-    playerControlsState: PlayerControlsState,
-    onPlayerControlsAction: (PlayerControlsAction) -> Boolean,
-    onPlayerControlsEvent: (String, Double) -> Boolean,
-    onPlayerControlsScrubChange: (Long) -> Boolean,
-    onPlayerControlsScrubFinished: (Long) -> Boolean,
     onControllerReady: (PlayerEngineController) -> Unit,
     onSnapshot: (PlayerPlaybackSnapshot) -> Unit,
     onError: (String?) -> Unit,
@@ -107,6 +103,9 @@ actual fun PlatformPlayerSurface(
     val sanitizedSourceResponseHeaders = remember(sourceResponseHeaders) {
         sanitizePlaybackResponseHeaders(sourceResponseHeaders)
     }
+    val normalizedStreamType = remember(streamType) {
+        normalizeStreamType(streamType)
+    }
     val useLibass = playerSettings.useLibass
     val libassRenderType = runCatching {
         LibassRenderType.valueOf(playerSettings.libassRenderType)
@@ -116,6 +115,7 @@ actual fun PlatformPlayerSurface(
         sourceAudioUrl.orEmpty(),
         sanitizedSourceHeaders,
         sanitizedSourceResponseHeaders,
+        normalizedStreamType.orEmpty(),
         useYoutubeChunkedPlayback,
     )
     var subtitleDelayMs by remember(playerSourceKey) { mutableStateOf(0) }
@@ -168,6 +168,7 @@ actual fun PlatformPlayerSurface(
         sourceAudioUrl,
         sanitizedSourceHeaders,
         sanitizedSourceResponseHeaders,
+        normalizedStreamType,
         useYoutubeChunkedPlayback,
         effectiveDecoderPriority,
     ) {
@@ -232,6 +233,7 @@ actual fun PlatformPlayerSurface(
                 videoMediaItem = playbackMediaItemFromUrl(
                     url = sourceUrl,
                     responseHeaders = sanitizedSourceResponseHeaders,
+                    streamType = normalizedStreamType,
                 ),
                 startPositionMs = fallbackStartPositionMs,
             )

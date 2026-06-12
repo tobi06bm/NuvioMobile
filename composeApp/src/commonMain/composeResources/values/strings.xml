@@ -300,7 +300,6 @@
     <string name="collections_pinned">Pinned</string>
     <string name="collections_tab_all">All</string>
     <string name="collections_your_collections">Your Collections</string>
-    <string name="compose_about_based_on_version_format">Based on Nuvio %1$s</string>
     <string name="compose_about_made_with">Made with ❤️ by Tapframe and friends</string>
     <string name="compose_about_version_format">Version %1$s (%2$s)</string>
     <string name="compose_action_off">Off</string>
@@ -450,7 +449,7 @@
     <string name="settings_advanced_remember_last_profile">Remember Last Profile</string>
     <string name="settings_advanced_remember_last_profile_description">Remember last selected profile at startup</string>
     <string name="settings_advanced_clear_cw_cache">Clear Continue Watching Cache</string>
-    <string name="settings_advanced_clear_cw_cache_subtitle">Remove cached thumbnails, titles, and enrichment data for Continue Watching</string>
+    <string name="settings_advanced_clear_cw_cache_subtitle">Remove cached Continue Watching data and refresh watch progress</string>
     <string name="settings_advanced_clear_cw_cache_done">Cache cleared</string>
     <string name="settings_licenses_attributions_section_app">APP LICENSE</string>
     <string name="settings_licenses_attributions_section_data">DATA &amp; SERVICES</string>
@@ -536,10 +535,6 @@
     <string name="settings_appearance_app_language">App Language</string>
     <string name="settings_appearance_app_language_sheet_title">Choose Language</string>
     <string name="settings_appearance_continue_watching_description">Settings for the Continue Watching section.</string>
-    <string name="settings_appearance_desktop_navigation">Desktop Navigation</string>
-    <string name="settings_appearance_desktop_navigation_sheet_title">Choose Desktop Navigation</string>
-    <string name="settings_appearance_desktop_navigation_sidebar">Sidebar</string>
-    <string name="settings_appearance_desktop_navigation_top_bar">Top Bar</string>
     <string name="settings_appearance_liquid_glass">Liquid Glass</string>
     <string name="settings_appearance_liquid_glass_description">Use the native iPhone tab bar on iOS 26 and later. Instant profile switching from the tab bar is unavailable while this is on.</string>
     <string name="settings_appearance_poster_customization_description">Tune card width and corner radius.</string>
