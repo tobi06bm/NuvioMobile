@@ -4,9 +4,7 @@ name: Synk fra original + Byg iOS IPA
 # automatisk en ny unsigned IPA hver gang der er nye ændringer derovre.
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'   # Tjek originalen for nyt hver 6. time
-  workflow_dispatch:        # Kan også startes manuelt fra Actions-fanen
+  workflow_dispatch:        # Kan kun startes manuelt fra Actions-fanen
 
 permissions:
   contents: write           # Nødvendig for at pushe synk + oprette Release
