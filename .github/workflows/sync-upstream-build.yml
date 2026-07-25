@@ -2,9 +2,18 @@ name: Synk fra original + Byg iOS IPA
 
 # Holder min fork opdateret med originalen (NuvioMedia/NuvioMobile) og bygger
 # automatisk en ny unsigned IPA hver gang der er nye ændringer derovre.
+# Kører helt af sig selv efter en fast tidsplan – ingen manuel start nødvendig.
 
 on:
-  workflow_dispatch:        # Kan kun startes manuelt fra Actions-fanen
+  schedule:
+    - cron: '0 */3 * * *'   # Tjekker originalen for nye ændringer hver 3. time (UTC)
+  workflow_dispatch:        # Kan også startes manuelt fra Actions-fanen
+    inputs:
+      force_build:
+        description: "Byg en ny IPA selvom der ikke er nye ændringer fra originalen"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write           # Nødvendig for at pushe synk + oprette Release
@@ -37,6 +46,7 @@ jobs:
 
           BEFORE=$(git rev-parse HEAD)
           if ! git merge --no-edit upstream/cmp-rewrite; then
+            git merge --abort || true
             echo "::error::Merge-konflikt mellem min fork og originalen – kan ikke flette automatisk."
             exit 1
           fi
@@ -63,91 +73,63 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # 2) Byg ny IPA – kun hvis der faktisk var nye ændringer
+  # 2) Byg ny IPA – kun hvis der faktisk var nye ændringer (eller hvis man selv
+  #    beder om det ved manuel start). Selve byg-opskriften ligger i build-ipa.yml.
   build:
     needs: sync
-    if: needs.sync.outputs.changed == 'true'
-    runs-on: macos-latest
+    if: needs.sync.outputs.changed == 'true' || github.event.inputs.force_build == 'true'
+    uses: ./.github/workflows/build-ipa.yml
+    with:
+      ref: cmp-rewrite
+      reason: Synk fra originalen (NuvioMedia/NuvioMobile)
+    permissions:
+      contents: write
+
+  # 3) Sig til hvis automatikken går i stå, så det ikke fejler i stilhed.
+  #    Opretter ét issue – og genbruger det samme issue hvis det sker igen.
+  meld-fejl:
+    needs: [sync, build]
+    if: always() && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
-      - name: Vælg nyeste Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+      - name: Opret eller opdater fejl-issue
+        uses: actions/github-script@v7
         with:
-          xcode-version: 'latest'
+          script: |
+            const title = 'Automatisk synk/byg fejlede';
+            const link = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              'Den automatiske synk fra originalen eller det efterfølgende IPA-byg fejlede.',
+              '',
+              `- Kørsel: ${link}`,
+              `- Synk: ${{ needs.sync.result }}`,
+              `- Byg: ${{ needs.build.result }}`,
+              '',
+              'Typisk årsag: merge-konflikt mellem forken og originalen. Så skal konflikten løses manuelt én gang, hvorefter automatikken kører videre selv.',
+            ].join('\n');
 
-      - name: Checkout (nyeste synkede kode)
-        uses: actions/checkout@v4
-        with:
-          ref: cmp-rewrite
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = open.find(i => i.title === title && !i.pull_request);
 
-      - name: Hent MPVKit-afspilleren
-        # Submodul-pinnet peger på en commit der ikke længere findes i kilde-repoet,
-        # så vi henter den nyeste fungerende version direkte ind i MPVKit-mappen.
-        run: |
-          rm -rf MPVKit
-          git clone --depth 1 https://github.com/tapframe/MPVNuvio.git MPVKit
-
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Opret local.properties
-        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-      - name: Giv rettigheder til scripts
-        run: |
-          chmod +x gradlew
-          find scripts -name "*.sh" -exec chmod +x {} \;
-
-      - name: Byg unsigned .app via xcodebuild
-        # xcodebuild kører selv Kotlin/Native-bygget (embedAndSign) som et build-trin.
-        # Vi bygger Debug i stedet for Release: Release-optimeringen af Kotlin/Native
-        # bruger 8-12 GB RAM og løber tør på den gratis 7 GB-server. Debug springer
-        # optimeringen over, passer let i hukommelsen og giver stadig en app der virker.
-        run: |
-          xcodebuild \
-            -project iosApp/iosApp.xcodeproj \
-            -scheme iosApp \
-            -configuration Debug \
-            -destination "generic/platform=iOS" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            ARCHS=arm64 \
-            build \
-            CONFIGURATION_BUILD_DIR="$PWD/build/iosOutput"
-
-      - name: Pak .app ind i .ipa
-        run: |
-          mkdir -p build/Payload
-          APP=$(find build/iosOutput -name "*.app" -maxdepth 1 | head -1)
-          echo "Fundet app: $APP"
-          cp -r "$APP" build/Payload/
-          cd build
-          zip -r NuvioMobile-unsigned.ipa Payload
-          echo "IPA størrelse: $(du -sh NuvioMobile-unsigned.ipa)"
-
-      - name: Upload IPA som artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: NuvioMobile-iOS-unsigned
-          path: build/NuvioMobile-unsigned.ipa
-          retention-days: 14
-
-      - name: Udgiv IPA til GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ios-latest
-          name: Seneste iOS build (unsigned)
-          body: |
-            Automatisk bygget unsigned IPA efter synk fra originalen (NuvioMedia/NuvioMobile).
-
-            - Commit: ${{ github.sha }}
-            - Bygget: ${{ github.run_id }}
-          prerelease: true
-          files: build/NuvioMobile-unsigned.ipa
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+            }
