@@ -1,13 +1,40 @@
-name: Build iOS IPA (Unsigned)
+name: Byg iOS IPA (unsigned)
+
+# Det ENESTE sted iOS-IPA'en bygges. Bruges tre steder fra:
+#   1. Automatisk ved hvert push til cmp-rewrite
+#   2. Manuelt fra Actions-fanen
+#   3. Som genbrugs-workflow fra "Synk fra original + Byg iOS IPA"
 
 on:
   push:
     branches:
-      - cmp-rewrite   # Byg automatisk ved hvert push til hovedbranchen
-  workflow_dispatch:  # Kan også køres manuelt fra Actions-fanen
+      - cmp-rewrite
+  workflow_dispatch:
+    inputs:
+      distribution:
+        description: 'Variant der skal bygges'
+        type: choice
+        options:
+          - full
+          - appstore
+        default: full
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Branch/commit der skal bygges'
+        type: string
+        default: cmp-rewrite
+      distribution:
+        description: 'full = alle funktioner, appstore = App Store-varianten'
+        type: string
+        default: full
 
 permissions:
   contents: write     # Nødvendig for at kunne oprette/opdatere GitHub Releases
+
+concurrency:
+  group: build-ios-${{ inputs.distribution || 'full' }}
+  cancel-in-progress: false
 
 jobs:
   build-ios:
@@ -21,6 +48,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Hent MPVKit-afspilleren
         # Submodul-pinnet peger på en commit der ikke længere findes i kilde-repoet,
@@ -46,11 +75,52 @@ jobs:
           chmod +x gradlew
           find scripts -name "*.sh" -exec chmod +x {} \;
 
+      - name: Læs appversion og variant
+        id: meta
+        # Versionen står ét sted (iosApp/Configuration/Version.xcconfig) og bruges
+        # både af Gradle og Xcode. Vi læser den her, så hver release får sit eget
+        # tag i stedet for at alle builds overskriver den samme "ios-latest".
+        run: |
+          CONFIG=iosApp/Configuration/Version.xcconfig
+          VERSION=$(sed -n 's/^MARKETING_VERSION=\(.*\)$/\1/p' "$CONFIG" | tr -d ' \r')
+          BUILD=$(sed -n 's/^CURRENT_PROJECT_VERSION=\(.*\)$/\1/p' "$CONFIG" | tr -d ' \r')
+          DIST="${{ inputs.distribution || 'full' }}"
+
+          if [ -z "$VERSION" ] || [ -z "$BUILD" ]; then
+            echo "::error::Kunne ikke læse MARKETING_VERSION/CURRENT_PROJECT_VERSION fra $CONFIG"
+            exit 1
+          fi
+
+          if [ "$DIST" = "full" ]; then
+            TAG="v$VERSION-$BUILD"
+            ROLLING_TAG="ios-latest"
+          else
+            TAG="v$VERSION-$BUILD-appstore"
+            ROLLING_TAG="ios-latest-appstore"
+          fi
+
+          {
+            echo "version=$VERSION"
+            echo "build=$BUILD"
+            echo "commit=$(git rev-parse HEAD)"
+            echo "distribution=$DIST"
+            echo "tag=$TAG"
+            echo "rolling_tag=$ROLLING_TAG"
+            echo "ipa=Nuvio-$VERSION-$BUILD-$DIST-unsigned.ipa"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Bygger Nuvio $VERSION ($BUILD) – variant: $DIST"
+
       - name: Byg unsigned .app via xcodebuild
-        # xcodebuild kører selv Kotlin/Native-bygget (embedAndSign) som et build-trin.
+        # xcodebuild kører selv Kotlin/Native-bygget (embedAndSign) som et build-trin,
+        # og NUVIO_IOS_DISTRIBUTION arves ned i Gradle derfra (samme måde som
+        # scripts/run-mobile.sh gør det lokalt).
+        #
         # Vi bygger Debug i stedet for Release: Release-optimeringen af Kotlin/Native
         # bruger 8-12 GB RAM og løber tør på den gratis 7 GB-server. Debug springer
         # optimeringen over, passer let i hukommelsen og giver stadig en app der virker.
+        env:
+          NUVIO_IOS_DISTRIBUTION: ${{ steps.meta.outputs.distribution }}
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
@@ -66,31 +136,58 @@ jobs:
       - name: Pak .app ind i .ipa
         run: |
           mkdir -p build/Payload
-          APP=$(find build/iosOutput -name "*.app" -maxdepth 1 | head -1)
+          APP=$(find build/iosOutput -maxdepth 1 -name "*.app" | head -1)
+
+          if [ -z "$APP" ]; then
+            echo "::error::Ingen .app blev bygget – der er ingenting at pakke til en IPA."
+            exit 1
+          fi
+
           echo "Fundet app: $APP"
           cp -r "$APP" build/Payload/
           cd build
-          zip -r NuvioMobile-unsigned.ipa Payload
-          echo "IPA størrelse: $(du -sh NuvioMobile-unsigned.ipa)"
+          zip -r "${{ steps.meta.outputs.ipa }}" Payload
+          echo "IPA størrelse: $(du -sh "${{ steps.meta.outputs.ipa }}")"
 
       - name: Upload IPA som artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NuvioMobile-iOS-unsigned
-          path: build/NuvioMobile-unsigned.ipa
+          name: NuvioMobile-iOS-${{ steps.meta.outputs.distribution }}-${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.build }}
+          path: build/${{ steps.meta.outputs.ipa }}
           retention-days: 14
 
-      - name: Udgiv IPA til GitHub Release
+      - name: Udgiv version-release
+        # Hver appversion får sin egen release, så gamle builds ikke forsvinder.
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ios-latest
-          name: Seneste iOS build (unsigned)
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Nuvio ${{ steps.meta.outputs.version }} (${{ steps.meta.outputs.build }}) – ${{ steps.meta.outputs.distribution }}
           body: |
-            Automatisk bygget unsigned IPA fra seneste commit på `cmp-rewrite`.
+            Automated unsigned build of **Nuvio ${{ steps.meta.outputs.version }} (${{ steps.meta.outputs.build }})** — `${{ steps.meta.outputs.distribution }}` variant.
 
-            - Commit: ${{ github.sha }}
-            - Bygget: ${{ github.run_id }}
+            The IPA is **unsigned**: sign it yourself with a sideloading tool (AltStore, SideStore, Sideloadly, …) before installing.
+
+            - Commit: ${{ steps.meta.outputs.commit }}
+            - Build log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          files: build/${{ steps.meta.outputs.ipa }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Opdater "seneste build"-release
+        # Rullende tag der altid peger på det nyeste build – praktisk til et
+        # direkte download-link der aldrig ændrer sig.
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.rolling_tag }}
+          name: Seneste iOS build (${{ steps.meta.outputs.distribution }}, unsigned)
+          body: |
+            Rolling build — always points at the newest automated build.
+
+            Currently: **Nuvio ${{ steps.meta.outputs.version }} (${{ steps.meta.outputs.build }})**, `${{ steps.meta.outputs.distribution }}` variant, unsigned.
+
+            - Commit: ${{ steps.meta.outputs.commit }}
+            - Build log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           prerelease: true
-          files: build/NuvioMobile-unsigned.ipa
+          files: build/${{ steps.meta.outputs.ipa }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
